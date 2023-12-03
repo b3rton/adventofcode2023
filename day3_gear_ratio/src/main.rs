@@ -126,7 +126,7 @@ fn parts_sums(grid: Vec<Vec<char>>) -> (usize,usize) {
             } else {
                 if active_number && is_part_number {
                     let parsed_number: usize = active_num_string.parse().unwrap();
-                    println!("Importing parsed number: {}", parsed_number);
+                    // println!("Importing parsed number: {}", parsed_number);
                     sum += parsed_number;
                     if is_gear{
                         for gear in &gear_list{
@@ -164,7 +164,6 @@ fn parts_sums(grid: Vec<Vec<char>>) -> (usize,usize) {
             }
         }
         // now clean up the vars since this is the end of a number
-        active_num_string = String::from("");
         active_number = false;
         is_part_number = false;
         is_gear = false;
@@ -172,17 +171,11 @@ fn parts_sums(grid: Vec<Vec<char>>) -> (usize,usize) {
     }
     // println!("Gear Map {:?}", gear_map);
     // now we have a map of gears with corresponding parts 
-    for (gear_loc, parts) in gear_map{
+    for (_gear_loc, parts) in gear_map{
         if parts.len() == 2{
             gear_sum += parts[0] * parts[1];
         }
     }
 
     (sum,gear_sum) 
-}
-
-fn gear_sum(grid: &Vec<Vec<char>>) -> usize{
-    let mut sum: usize = 0;
-
-    sum
 }
