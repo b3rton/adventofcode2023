@@ -4,6 +4,9 @@ use std::fs::File;
 use std::time::Instant;
 use std::env;
 
+
+
+
 fn main() -> io::Result<()> {
     let start_time = Instant::now();
     // Get command line arguments
@@ -23,25 +26,48 @@ fn main() -> io::Result<()> {
     let reader = io::BufReader::new(file);
 
     // Create our state variables
-    let mut sum = 0;
-    // Read through the file and process it into the map
+    let mut point_sum = 0;
+    // Array of the cards where the value is the # of cards below you win!, format is # of matching numbers, # of copies
+    let mut cards: Vec<(usize,usize)> = vec![];
+    let mut total_cards = 0;
+    // For each line, process its number of cards earned equal to the 
+
+
+
+    // Read through the file and process it
     for line in reader.lines(){
         let line = line?;
         // println!("{:?}",line);
-        let l_int = process_card(line);
-        println!("Value of Card: {}", l_int);
-        sum += l_int;
+        let (l_points,l_matches) = process_card(line);
+        cards.push((l_matches,1));
+        // println!("Value of Card: {}", l_points);
+        point_sum += l_points;
     }
 
-    println!("Sum: {}", sum);
+    // for it card process it adding the # of copies you have to the cards that are # of matches below
+    let mut card_num = 0; 
+    while card_num < cards.len(){
+        // println!("Working with {} copies of card {}", cards[card_num].1, card_num+1);
+        // println!("{:?}",cards);
+        total_cards += cards[card_num].1;
+        for i in 0..cards[card_num].0{
+            // println!("adding to the quantity of cardnum + {i}");
+            cards[card_num+i+1].1 += cards[card_num].1;
+        }
+        card_num += 1;
+    }
+
+    println!("Total Cards: {}",total_cards);
+    println!("Sum: {}", point_sum);
     let elapsed_time = start_time.elapsed();
     println!("Elapsed time: {:?}", elapsed_time);
     Ok(())
 }
 
 
-fn process_card(line: String) -> usize{
+fn process_card(line: String) -> (usize,usize){
     let mut value: usize = 0;
+    let mut num_matches = 0;
     // prep the card by splitting first on : then on | 
     let split1: Vec<&str> = line.split(":").collect();
     let numbers = String::from(split1[1]);
@@ -61,8 +87,9 @@ fn process_card(line: String) -> usize{
             }else{
                 value = value * 2; 
             }
+            num_matches += 1;
         }
     }
     // return the value achieved
-    value
+    (value,num_matches)
 }
