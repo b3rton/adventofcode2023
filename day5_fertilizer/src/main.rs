@@ -1,8 +1,50 @@
 use std::collections::HashMap;
 use std::env;
+use std::fs;
 use std::fs::File;
 use std::io::{self, BufRead};
+use std::str::FromStr;
 use std::time::Instant;
+
+// Define a struct for each map entry
+#[derive(Debug)]
+struct RangeMap {
+    destination_start: usize,
+    source_start: usize,
+    range_length: usize,
+}
+
+impl FromStr for RangeMap {
+    type Err = std::num::ParseIntError;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        let parts: Vec<usize> = s
+            .split_whitespace()
+            .map(|part| part.parse().unwrap())
+            .collect();
+        Ok(Self {
+            destination_start: parts[0],
+            source_start: parts[1],
+            range_length: parts[2],
+        })
+    }
+}
+
+impl RangeMap {
+    // Function to check if a number is within the range and map it to the destination range
+    fn map_value(&self, number: usize) -> Option<usize> {
+        // Check if the number is within the range
+        if number >= self.source_start && number < self.source_start + self.range_length {
+            // Calculate the offset from the source start
+            let offset = number - self.source_start;
+            // Return the corresponding value in the destination range
+            Some(self.destination_start + offset)
+        } else {
+            // Number is not within the range
+            None
+        }
+    }
+}
 
 fn main() -> io::Result<()> {
     let start_time = Instant::now();
@@ -20,57 +62,79 @@ fn main() -> io::Result<()> {
     //Open the file
     let file = File::open(&args[1])?;
     // Create a buffered reader
-    let reader = io::BufReader::new(file);
+    let reader: io::BufReader<File> = io::BufReader::new(file);
 
-    // Create our state variables
-    // create a map for each range, should be 100 tuples that go (0,0), (1,1) etc
-    let mut seeds: Vec<usize> = Vec::new();
-    let mut seed_to_soil_map: HashMap<usize, usize> = HashMap::new();
-    let mut soil_to_fertilizer_map: HashMap<usize, usize> = HashMap::new();
-    let mut fertilizer_to_water_map: HashMap<usize, usize> = HashMap::new();
-    let mut water_to_light_map: HashMap<usize, usize> = HashMap::new();
-    let mut light_to_temperature_map: HashMap<usize, usize> = HashMap::new();
-    let mut temperature_to_humidity_map: HashMap<usize, usize> = HashMap::new();
-    let mut humidity_to_location_map: HashMap<usize, usize> = HashMap::new();
+    let input = fs::read_to_string(&args[1])?;
 
-    // process each range set into the tuples
+    let mut sections = input.split("\n\n");
 
-    // calculate out the destination for each seed
-    // seed -> soil -> fert -> water -> light -> temp -> humid ->location
+    // Parse Seeds
+    let seeds: Vec<usize> = sections
+        .next()
+        .unwrap()
+        .split(':')
+        .nth(1)
+        .unwrap()
+        .trim()
+        .split_whitespace()
+        .map(|num| num.parse().unwrap())
+        .collect();
 
-    // Read through the file and process it
-    for line in reader.lines() {
-        let line = line?;
-        // println!("{:?}",line);
-        let holder = process_range(line.clone());
+    // Function to parse and sort map sections
+    let parse_and_sort_map_section = |section: Option<&str>| -> Vec<RangeMap> {
+        let mut map: Vec<RangeMap> = section.unwrap()
+                                            .lines().skip(1)
+                                            .map(|line| line.parse().unwrap())
+                                            .collect();
+        // Sorting the map by source_start
+        map.sort_by_key(|k| k.source_start);
+        map
+    };
 
-        let mut partsSplit = line.split(':');
-        let mut parts = partsSplit.map(|s| s.trim());
 
-        println!("{:?}")
+     // Parse each map
+     let seed_to_soil_map = parse_and_sort_map_section(sections.next());
+     let soil_to_fertilizer_map = parse_and_sort_map_section(sections.next());
+     let fertilizer_to_water_map = parse_and_sort_map_section(sections.next());
+     let water_to_light_map = parse_and_sort_map_section(sections.next());
+     let light_to_temperature_map = parse_and_sort_map_section(sections.next());
+     let temperature_to_humidity_map = parse_and_sort_map_section(sections.next());
+     let humidity_to_location_map = parse_and_sort_map_section(sections.next());
+ 
+     // Print each map
+     println!("Seeds: {:?}", seeds);
+     println!("Seed to Soil Map: {:?}", seed_to_soil_map);
+     println!("Soil to Fertilizer Map: {:?}", soil_to_fertilizer_map);
+     println!("Fertilizer to Water Map: {:?}", fertilizer_to_water_map);
+     println!("Water to Light Map: {:?}", water_to_light_map);
+     println!("Light to Temperature Map: {:?}", light_to_temperature_map);
+     println!("Temperature to Humidity Map: {:?}", temperature_to_humidity_map);
+     println!("Humidity to Location Map: {:?}", humidity_to_location_map);
 
-        let label = parts.next().unwrap();
-        let values = parts.next().unwrap();
+    // Now map all of the seeds, as we map them track the minimum number
+    let mut min_location: usize = usize::MAX;
 
-        match label {
-            "seeds" => parse_and_insert_seeds(&mut seeds, values)?,
-            "seed-to-soil map" => parse_and_insert_map(&mut seed_to_soil_map, values)?,
-            "soil-to-fertilizer map" => parse_and_insert_map(&mut soil_to_fertilizer_map, values)?,
-            "fertilizer-to-water map" => parse_and_insert_map(&mut fertilizer_to_water_map, values)?,
-            "water-to-light map" => parse_and_insert_map(&mut water_to_light_map, values)?,
-            "light-to-temperature map" => parse_and_insert_map(&mut light_to_temperature_map, values)?,
-            "temperature-to-humidity map" => parse_and_insert_map(&mut temperature_to_humidity_map, values)?,
-            "humidity-to-location map" => parse_and_insert_map(&mut humidity_to_location_map, values)?,
-            _ => {}
+    for seed in seeds{
+        // map to soil
+        let soil = process_through_map(&seed_to_soil_map, seed);
+        // map to fertilizer
+        let fertilizer = process_through_map(&soil_to_fertilizer_map, soil);
+        // map to water 
+        let water = process_through_map(&fertilizer_to_water_map, fertilizer);
+        // map to light
+        let light = process_through_map(&water_to_light_map, water);
+        // map to temp
+        let temp = process_through_map(&light_to_temperature_map, light);
+        // map to humidity
+        let humidity = process_through_map(&temperature_to_humidity_map, temp);
+        // map to location
+        let location = process_through_map(&humidity_to_location_map, humidity);
+        if location < min_location{
+            min_location = location;
         }
     }
 
-    // print collected data
-    println!("Seeds: {:?}", seeds);
-    println!("Seed-to-soil map: {:?}", seed_to_soil_map);
-    println!("Soil-to-fertilizer map: {:?}", soil_to_fertilizer_map);
-    println!("Fertilizer-to-water map: {:?}", fertilizer_to_water_map);
-    println!("Water-to-light map: {:?}", water_to_light_map);
+    println!("Min Location: {}", min_location);
 
     let elapsed_time = start_time.elapsed();
     println!("Elapsed time: {:?}", elapsed_time);
@@ -78,28 +142,22 @@ fn main() -> io::Result<()> {
 }
 
 fn process_range(line: String) -> usize {
-    println!("{}",line);
+    println!("{}", line);
     1
 }
 
-fn parse_and_insert_seeds(seeds: &mut Vec<usize>, values: &str) -> Result<(), std::io::Error> {
-    for value in values.split(' ') {
-        let val: usize = value.parse().unwrap();
-        seeds.push(val);
+fn process_through_map(map: &Vec<RangeMap>, source_val: usize) -> usize{
+    let mut val: usize = 0;
+    for range in map{
+        let in_range = range.map_value(source_val);
+        match  in_range {
+            Some(new_val) => val = new_val,
+            None => continue
+        }
+        return val
     }
-
-    Ok(())
-}
-
-fn parse_and_insert_map(map: &mut HashMap<usize, usize>, values: &str) -> Result<(), std::io::Error> {
-    for value in values.split(' ') {
-        let mut parts = value.split("->");
-
-        let from = parts.next().unwrap().parse::<usize>().unwrap();
-        let to = parts.next().unwrap().parse::<usize>().unwrap();
-
-        map.insert(from, to);
+    if val == 0{
+        return source_val
     }
-
-    Ok(())
+    val
 }
