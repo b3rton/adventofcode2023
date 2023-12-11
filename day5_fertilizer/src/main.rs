@@ -6,6 +6,19 @@ use std::io::{self, BufRead};
 use std::str::FromStr;
 use std::time::Instant;
 
+/// Part two, two possible approaches?
+/// go backwards finding min possible location that matches a seed 
+///    While going backwards track a range of possible numbers then see if its in any of the seed ranges 
+///     Process one range at a time, starting at the smallest location Range
+/// Go forwards mapping ranges across the thing to find the minimum possible values 
+/// 
+/// Backwards approach:
+/// Step 1: read the seeds into seedMap and have eval function
+/// Step 2: Build a possible values map for the lowest range, need to consider how to handle the "default" map 
+/// Step 3: track possible values backwards through the chain
+/// Step 4: Check if any of the possible values for the lowest range exist in the seeds ranges
+/// 
+
 // Define a struct for each map entry
 #[derive(Debug)]
 struct RangeMap {
@@ -43,6 +56,17 @@ impl RangeMap {
             // Number is not within the range
             None
         }
+    }
+}
+
+struct SeedRange{
+    range_start: usize,
+    range_length: usize
+}
+
+impl SeedRange{
+    fn in_range(self, test_val: usize){
+
     }
 }
 
